@@ -28,8 +28,8 @@ A beautiful and minimalistic task manager built with SwiftUI. Organize your task
 
 ```bash
 git clone https://github.com/joecoh/Task-iOS.git
-
-### 2. Open the project
+```
+### 1. Clone the repository
 
 - Navigate to the folder:
 
@@ -68,7 +68,10 @@ open Task.xcworkspace
 
 ## 📄 License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the **GNU General Public License v3.0** - see the [LICENSE](LICENSE) file for details.
+
+The GNU General Public License v3.0 (GPL-3.0) is a free software license that ensures end users have the freedom to run, study, share, and modify the software. Under this license, any modified versions of this software must also be distributed under the GPL-3.0 license.
+
 
 ---
 
