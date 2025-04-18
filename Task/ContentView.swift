@@ -12,7 +12,6 @@
 //  Created by Joash Cohen on 16/04/25.
 //
 
-
 import SwiftUI
 
 struct ContentView: View {
@@ -22,7 +21,7 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             List {
-                ForEach(viewModel.tasks) { task in
+                ForEach(viewModel.filteredTasks) { task in
                     HStack {
                         VStack(alignment: .leading) {
                             Text(task.title)
@@ -42,15 +41,28 @@ struct ContentView: View {
                 }
                 .onDelete(perform: viewModel.deleteTask)
             }
-            .navigationTitle("📅 My To-Do List")
+            .navigationTitle("📋 My TASK")
             .toolbar {
-                Button(action: { showingAddTask.toggle() }) {
-                    Image(systemName: "plus")
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { showingAddTask.toggle() }) {
+                        Image(systemName: "plus")
+                    }
+                }
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Menu {
+                        Button("All Tasks")   { viewModel.currentFilter = .all }
+                        Button("Completed")   { viewModel.currentFilter = .completed }
+                        Button("Task Due")    { viewModel.currentFilter = .taskDue }
+                        Button("Upcoming")    { viewModel.currentFilter = .upcoming }
+                    } label: {
+                        Image(systemName: "line.3.horizontal.decrease.circle")
+                            .imageScale(.large)
+                    }
                 }
             }
-        }
-        .sheet(isPresented: $showingAddTask) {
-            AddTaskView(viewModel: viewModel)
+            .sheet(isPresented: $showingAddTask) {
+                AddTaskView(viewModel: viewModel)
+            }
         }
     }
 }

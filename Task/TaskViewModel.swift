@@ -9,10 +9,31 @@
 import Foundation
 import UserNotifications
 
+enum TaskFilter {
+    case all
+    case completed
+    case taskDue
+    case upcoming
+}
+
 class TaskViewModel: ObservableObject {
     @Published var tasks: [Task] = [] {
         didSet {
             saveTasks()
+        }
+    }
+    @Published var currentFilter: TaskFilter = .all
+
+    var filteredTasks: [Task] {
+        switch currentFilter {
+        case .completed:
+            return tasks.filter { $0.isCompleted }
+        case .taskDue:
+            return tasks.filter { !$0.isCompleted && $0.dueDate <= Date() }
+        case .upcoming:
+            return tasks.filter { !$0.isCompleted && $0.dueDate > Date() && !Calendar.current.isDateInToday($0.dueDate) }
+        case .all:
+            return tasks
         }
     }
 
@@ -20,21 +41,36 @@ class TaskViewModel: ObservableObject {
         loadTasks()
     }
 
+    private func loadTasks() {
+        let url = getTasksURL()
+        if let data = try? Data(contentsOf: url),
+           let decoded = try? JSONDecoder().decode([Task].self, from: data) {
+            tasks = decoded
+        }
+    }
+
     func addTask(title: String, dueDate: Date) {
         let newTask = Task(title: title, dueDate: dueDate)
         tasks.append(newTask)
+        saveTasks()
         scheduleNotification(for: newTask)
     }
 
     func toggleCompletion(for task: Task) {
         if let index = tasks.firstIndex(where: { $0.id == task.id }) {
             tasks[index].isCompleted.toggle()
+            if tasks[index].isCompleted {
+                UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [task.id.uuidString])
+            }
+            saveTasks()
         }
     }
 
     func deleteTask(at offsets: IndexSet) {
         tasks.remove(atOffsets: offsets)
+        saveTasks()
     }
+
 
     private func getTasksURL() -> URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("tasks.json")
@@ -46,15 +82,9 @@ class TaskViewModel: ObservableObject {
         }
     }
 
-    private func loadTasks() {
-        let url = getTasksURL()
-        if let data = try? Data(contentsOf: url),
-           let decoded = try? JSONDecoder().decode([Task].self, from: data) {
-            tasks = decoded
-        }
-    }
-
     private func scheduleNotification(for task: Task) {
+        guard !task.isCompleted else { return }
+
         let content = UNMutableNotificationContent()
         content.title = "Task Reminder"
         content.body = task.title
