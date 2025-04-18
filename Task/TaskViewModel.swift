@@ -18,9 +18,7 @@ enum TaskFilter {
 
 class TaskViewModel: ObservableObject {
     @Published var tasks: [Task] = [] {
-        didSet {
-            saveTasks()
-        }
+        didSet { saveTasks() }
     }
     @Published var currentFilter: TaskFilter = .all
 
@@ -31,7 +29,11 @@ class TaskViewModel: ObservableObject {
         case .taskDue:
             return tasks.filter { !$0.isCompleted && $0.dueDate <= Date() }
         case .upcoming:
-            return tasks.filter { !$0.isCompleted && $0.dueDate > Date() && !Calendar.current.isDateInToday($0.dueDate) }
+            return tasks.filter {
+                !$0.isCompleted &&
+                $0.dueDate > Date() &&
+                !Calendar.current.isDateInToday($0.dueDate)
+            }
         case .all:
             return tasks
         }
@@ -57,23 +59,36 @@ class TaskViewModel: ObservableObject {
     }
 
     func toggleCompletion(for task: Task) {
+        // 1) Tell SwiftUI we’re about to change something
+        objectWillChange.send()
+
+        // 2) Toggle the flag
         if let index = tasks.firstIndex(where: { $0.id == task.id }) {
             tasks[index].isCompleted.toggle()
+
+            // 3) Cancel notification if completed
             if tasks[index].isCompleted {
-                UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [task.id.uuidString])
+                UNUserNotificationCenter
+                  .current()
+                  .removePendingNotificationRequests(withIdentifiers: [task.id.uuidString])
             }
+
+            // 4) Persist the change
             saveTasks()
         }
     }
+
 
     func deleteTask(at offsets: IndexSet) {
         tasks.remove(atOffsets: offsets)
         saveTasks()
     }
 
-
     private func getTasksURL() -> URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("tasks.json")
+        FileManager
+          .default
+          .urls(for: .documentDirectory, in: .userDomainMask)[0]
+          .appendingPathComponent("tasks.json")
     }
 
     private func saveTasks() {
@@ -84,16 +99,24 @@ class TaskViewModel: ObservableObject {
 
     private func scheduleNotification(for task: Task) {
         guard !task.isCompleted else { return }
-
         let content = UNMutableNotificationContent()
         content.title = "Task Reminder"
-        content.body = task.title
+        content.body  = task.title
         content.sound = .default
 
-        let triggerDate = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: task.dueDate)
-        let trigger = UNCalendarNotificationTrigger(dateMatching: triggerDate, repeats: false)
-
-        let request = UNNotificationRequest(identifier: task.id.uuidString, content: content, trigger: trigger)
+        let triggerDate = Calendar.current.dateComponents(
+            [.year, .month, .day, .hour, .minute],
+            from: task.dueDate
+        )
+        let trigger = UNCalendarNotificationTrigger(
+            dateMatching: triggerDate,
+            repeats: false
+        )
+        let request = UNNotificationRequest(
+            identifier: task.id.uuidString,
+            content: content,
+            trigger: trigger
+        )
         UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
     }
 }
