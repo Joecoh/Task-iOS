@@ -11,6 +11,7 @@ class Task: Identifiable, Codable {
     var title: String
     var dueDate: Date
     var isCompleted: Bool = false
+    var isPinned: Bool = false
 
     init(title: String, dueDate: Date, isCompleted: Bool = false) {
         self.title = title

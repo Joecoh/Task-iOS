@@ -23,21 +23,27 @@ class TaskViewModel: ObservableObject {
     @Published var currentFilter: TaskFilter = .all
 
     var filteredTasks: [Task] {
+        func sortPinnedFirst(_ tasks: [Task]) -> [Task] {
+            return tasks.sorted { $0.isPinned && !$1.isPinned }
+        }
+
         switch currentFilter {
+        case .all:
+            return sortPinnedFirst(tasks)
         case .completed:
-            return tasks.filter { $0.isCompleted }
+            return sortPinnedFirst(tasks.filter { $0.isCompleted })
         case .taskDue:
-            return tasks.filter { !$0.isCompleted && $0.dueDate <= Date() }
+            return sortPinnedFirst(tasks.filter { !$0.isCompleted && $0.dueDate <= Date() })
         case .upcoming:
-            return tasks.filter {
+            return sortPinnedFirst(tasks.filter {
                 !$0.isCompleted &&
                 $0.dueDate > Date() &&
                 !Calendar.current.isDateInToday($0.dueDate)
-            }
-        case .all:
-            return tasks
+            })
         }
     }
+
+
 
     init() {
         loadTasks()
@@ -57,6 +63,16 @@ class TaskViewModel: ObservableObject {
         saveTasks()
         scheduleNotification(for: newTask)
     }
+    func updateTask(_ task: Task, withTitle title: String, dueDate: Date) {
+        if let index = tasks.firstIndex(where: { $0.id == task.id }) {
+            tasks[index].title = title
+            tasks[index].dueDate = dueDate
+            tasks[index].isCompleted = false
+            saveTasks()
+            scheduleNotification(for: tasks[index])
+        }
+    }
+
 
     func toggleCompletion(for task: Task) {
         // 1) Tell SwiftUI we’re about to change something
@@ -83,6 +99,15 @@ class TaskViewModel: ObservableObject {
         tasks.remove(atOffsets: offsets)
         saveTasks()
     }
+    func togglePin(for task: Task) {
+        if let index = tasks.firstIndex(where: { $0.id == task.id }) {
+            tasks[index].isPinned.toggle()
+            
+            // Trigger tasks update to refresh filteredTasks immediately
+            tasks = tasks.sorted { $0.isPinned && !$1.isPinned }
+        }
+    }
+
 
     private func getTasksURL() -> URL {
         FileManager
