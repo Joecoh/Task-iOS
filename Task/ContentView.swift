@@ -14,8 +14,13 @@ struct ContentView: View {
     @State private var editingTask: Task? = nil
     @State private var title: String = ""
     @State private var dueDate: Date = Date()
+    @State private var shouldRemind = false
+    @State private var reminderDate = Date()
+    @State private var showTitleAlert = false
+    
+    
     @Environment(\.dismiss) var dismiss
-
+    
     var body: some View {
         NavigationView {
             List {
@@ -35,7 +40,7 @@ struct ContentView: View {
                                 .imageScale(.small)
                                 .padding(.trailing, 5)
                         }
-
+                        
                         Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
                             .foregroundColor(task.isCompleted ? .green : .gray)
                             .onTapGesture {
@@ -48,10 +53,13 @@ struct ContentView: View {
                             editingTask = task
                             title = task.title
                             dueDate = task.dueDate
+                            shouldRemind = task.shouldRemind
+                            reminderDate = task.reminderDate ?? Date()
                             showingAddTask.toggle()
                         } label: {
                             Label("Edit", systemImage: "pencil")
                         }
+                        
                         Button(role: .destructive) {
                             if let index = viewModel.tasks.firstIndex(where: { $0.id == task.id }) {
                                 viewModel.tasks.remove(at: index)
@@ -60,26 +68,29 @@ struct ContentView: View {
                             Label("Delete", systemImage: "trash")
                         }
                         Button {
-                                viewModel.togglePin(for: task)
-                            } label: {
-                                Label(task.isPinned ? "Unpin" : "Pin", systemImage: task.isPinned ? "pin.slash" : "pin")
-                            }
+                            viewModel.togglePin(for: task)
+                        } label: {
+                            Label(task.isPinned ? "Unpin" : "Pin", systemImage: task.isPinned ? "pin.slash" : "pin")
+                        }
                     }
                     .onLongPressGesture {
                         let generator = UIImpactFeedbackGenerator(style: .medium)
                         generator.impactOccurred()
                         viewModel.togglePin(for: task)
                     }
-
+                    
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         Button {
                             editingTask = task
                             title = task.title
                             dueDate = task.dueDate
+                            shouldRemind = task.shouldRemind
+                            reminderDate = task.reminderDate ?? Date()
                             showingAddTask.toggle()
                         } label: {
                             Label("Edit", systemImage: "pencil")
                         }
+                        
                         .tint(.blue)
                         
                         Button(role: .destructive) {
@@ -97,7 +108,7 @@ struct ContentView: View {
                             Label(task.isPinned ? "Unpin" : "Pin", systemImage: task.isPinned ? "pin.slash" : "pin")
                         }
                         .tint(task.isPinned ? .gray : .yellow)
-
+                        
                         Button {
                             viewModel.toggleCompletion(for: task)
                         } label: {
@@ -105,7 +116,7 @@ struct ContentView: View {
                         }
                         .tint(task.isCompleted ? .gray : .green)
                     }
-
+                    
                 }
                 .onDelete(perform: viewModel.deleteTask)
             }
@@ -138,35 +149,82 @@ struct ContentView: View {
                     TextField("Task Title", text: $title)
                         .padding()
                         .textFieldStyle(RoundedBorderTextFieldStyle())
+                    
                     DatePicker("Due Date", selection: $dueDate, displayedComponents: .date)
                         .padding()
+                    
+                    Toggle("Set Reminder", isOn: $shouldRemind)
+                        .padding()
+                    
+                    if shouldRemind {
+                        DatePicker("Reminder Time", selection: $reminderDate, displayedComponents: [.date, .hourAndMinute])
+                        
+                    }
+                    
                     HStack {
-                        Button("Save") {
-                            if let editingTask = editingTask {
-                                // Update existing task
-                                viewModel.updateTask(editingTask, withTitle: title, dueDate: dueDate)
-                            } else {
-                                // Add new task
-                                viewModel.addTask(title: title, dueDate: dueDate)
-                            }
+                        Button("Cancel") {
                             showingAddTask = false
-                            title = "" // Clear title for next input
-                            dueDate = Date() // Reset date for next input
+                            title = ""
+                            dueDate = Date()
+                            shouldRemind = false
+                            reminderDate = Date()
                         }
                         .padding()
-                        .background(Color.blue)
+                        .background(Color.gray)
+                        .foregroundColor(.white)
+                        .cornerRadius(8)
+                        
+                        Button("Save") {
+                            let trimmedTitle = title.trimmingCharacters(in: .whitespaces)
+                            if trimmedTitle.isEmpty {
+                                showTitleAlert = true
+                                return
+                            }
+                            
+                            
+                            if let editingTask = editingTask {
+                                viewModel.updateTask(
+                                    editingTask,
+                                    withTitle: trimmedTitle,
+                                    dueDate: dueDate,
+                                    shouldRemind: shouldRemind,
+                                    reminderDate: shouldRemind ? reminderDate : nil
+                                )
+                            } else {
+                                viewModel.addTask(
+                                    title: trimmedTitle,
+                                    dueDate: dueDate,
+                                    shouldRemind: shouldRemind,
+                                    reminderDate: shouldRemind ? reminderDate : nil
+                                )
+                            }
+                            
+                            showingAddTask = false
+                            title = ""
+                            dueDate = Date()
+                            shouldRemind = false
+                            reminderDate = Date()
+                        }
+                        .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
+                        .padding()
+                        .background(title.trimmingCharacters(in: .whitespaces).isEmpty ? Color.gray : Color.blue)
                         .foregroundColor(.white)
                         .cornerRadius(8)
                     }
+                    
                 }
                 .padding()
+                .alert("Please enter a task title", isPresented: $showTitleAlert) {
+                    Button("OK", role: .cancel) { }
+                }
+                
             }
         }
     }
-}
-
-struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView()
+    
+    struct ContentView_Previews: PreviewProvider {
+        static var previews: some View {
+            ContentView()
+        }
     }
 }

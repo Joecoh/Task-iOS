@@ -13,18 +13,33 @@ struct AddTaskView: View {
     @ObservedObject var viewModel: TaskViewModel
     @State private var title = ""
     @State private var dueDate = Date()
+    @State private var shouldRemind = false
+    @State private var reminderDate = Date()
 
     var body: some View {
         NavigationView {
             Form {
                 TextField("Task Title", text: $title)
                 DatePicker("Due Date", selection: $dueDate, displayedComponents: [.date, .hourAndMinute])
+                
+                Toggle("Set Reminder", isOn: $shouldRemind)
+                
+                if shouldRemind {
+                    DatePicker("Reminder Time", selection: $reminderDate)
+                        .datePickerStyle(CompactDatePickerStyle())
+                }
             }
             .navigationTitle("New Task")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Add") {
-                        viewModel.addTask(title: title, dueDate: dueDate)
+                        // Pass reminder data to the view model
+                        viewModel.addTask(
+                            title: title,
+                            dueDate: dueDate,
+                            shouldRemind: shouldRemind,
+                            reminderDate: shouldRemind ? reminderDate : nil
+                        )
                         dismiss()
                     }.disabled(title.isEmpty)
                 }

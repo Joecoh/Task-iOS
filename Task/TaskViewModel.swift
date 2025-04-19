@@ -57,21 +57,44 @@ class TaskViewModel: ObservableObject {
         }
     }
 
-    func addTask(title: String, dueDate: Date) {
-        let newTask = Task(title: title, dueDate: dueDate)
+    func addTask(title: String, dueDate: Date, shouldRemind: Bool, reminderDate: Date?) {
+        let newTask = Task(title: title, dueDate: dueDate, shouldRemind: shouldRemind, reminderDate: reminderDate)
         tasks.append(newTask)
         saveTasks()
-        scheduleNotification(for: newTask)
-    }
-    func updateTask(_ task: Task, withTitle title: String, dueDate: Date) {
-        if let index = tasks.firstIndex(where: { $0.id == task.id }) {
-            tasks[index].title = title
-            tasks[index].dueDate = dueDate
-            tasks[index].isCompleted = false
-            saveTasks()
-            scheduleNotification(for: tasks[index])
+        if shouldRemind, let reminderDate = reminderDate {
+            scheduleNotification(for: newTask, at: reminderDate)
         }
     }
+
+    func updateTask(
+        _ task: Task,
+        withTitle title: String,
+        dueDate: Date,
+        shouldRemind: Bool,
+        reminderDate: Date?
+    ) {
+        guard let index = tasks.firstIndex(where: { $0.id == task.id }) else { return }
+
+        // 1. Cancel any existing reminder for this task
+        UNUserNotificationCenter
+          .current()
+          .removePendingNotificationRequests(withIdentifiers: [task.id.uuidString])
+
+        // 2. Update the model
+        tasks[index].title        = title
+        tasks[index].dueDate      = dueDate
+        tasks[index].shouldRemind = shouldRemind
+        tasks[index].reminderDate = reminderDate
+        tasks[index].isCompleted  = false
+
+        saveTasks()
+
+        // 3. Schedule a new notification if needed
+        if shouldRemind, let date = reminderDate {
+            scheduleNotification(for: tasks[index], at: date)
+        }
+    }
+
 
 
     func toggleCompletion(for task: Task) {
@@ -122,21 +145,15 @@ class TaskViewModel: ObservableObject {
         }
     }
 
-    private func scheduleNotification(for task: Task) {
-        guard !task.isCompleted else { return }
+    private func scheduleNotification(for task: Task, at date: Date) {
         let content = UNMutableNotificationContent()
         content.title = "Task Reminder"
-        content.body  = task.title
+        content.body = task.title
         content.sound = .default
 
-        let triggerDate = Calendar.current.dateComponents(
-            [.year, .month, .day, .hour, .minute],
-            from: task.dueDate
-        )
-        let trigger = UNCalendarNotificationTrigger(
-            dateMatching: triggerDate,
-            repeats: false
-        )
+        let triggerDate = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+        let trigger = UNCalendarNotificationTrigger(dateMatching: triggerDate, repeats: false)
+
         let request = UNNotificationRequest(
             identifier: task.id.uuidString,
             content: content,
@@ -144,4 +161,5 @@ class TaskViewModel: ObservableObject {
         )
         UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
     }
+
 }

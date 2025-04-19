@@ -12,10 +12,13 @@ class Task: Identifiable, Codable {
     var dueDate: Date
     var isCompleted: Bool = false
     var isPinned: Bool = false
+    var shouldRemind: Bool = false
+    var reminderDate: Date?
 
-    init(title: String, dueDate: Date, isCompleted: Bool = false) {
+    init(title: String, dueDate: Date, shouldRemind: Bool = false, reminderDate: Date? = nil) {
         self.title = title
         self.dueDate = dueDate
-        self.isCompleted = isCompleted
+        self.shouldRemind = shouldRemind
+        self.reminderDate = reminderDate
     }
 }
